@@ -1,0 +1,15 @@
+{
+  "blacklistedUsers": [
+    {
+      "userId": "1116046775359373343",
+      "userTag": "sergantcat",
+      "reason": "test",
+      "details": "no details",
+      "guild": "NDRI Bot Testing Server",
+      "guildId": "1475070463867879446",
+      "blacklistedBy": "sergantcat",
+      "blacklistedById": "1116046775359373343",
+      "timestamp": "2026-06-08T15:24:54.891Z"
+    }
+  ]
+}
