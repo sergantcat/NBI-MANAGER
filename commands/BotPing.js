@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('botping')
+        .setName('BotPing')
         .setDescription('Replies with bot latency and API latency'),
 
     async execute(interaction) {
@@ -10,7 +10,7 @@ module.exports = {
         const botLatency = Math.round(Date.now() - interaction.createdTimestamp);
 
         const embed = new EmbedBuilder()
-            .setTitle('Bot Ping')
+            .setTitle('Pong 🏓')
             .setDescription(`Bot Latency: ${botLatency}ms\nAPI Latency: ${apiLatency}ms`)
             .setColor('#00b7ff');
 
