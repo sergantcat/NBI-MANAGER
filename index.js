@@ -1,14 +1,17 @@
 const fs = require('fs');
 const path = require('path');
-const { Client, Collection, GatewayIntentBits, REST, Routes } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, Partials, REST, Routes } = require('discord.js');
 require('dotenv').config();
 
-const token = process.env.TOKEN;
+const token = process.env.DISCORD_TOKEN || process.env.TOKEN;
 const clientId = process.env.CLIENT_ID;
-const guildId = process.env.GUILD_ID;
+const guildIds = (process.env.GUILD_IDS || process.env.GUILD_ID || process.env.TEST_GUILD_ID || '')
+  .split(',')
+  .map(id => id.trim())
+  .filter(Boolean);
 
 if (!token) {
-  console.error('Missing TOKEN in .env');
+  console.error('Missing DISCORD_TOKEN in .env');
   process.exit(1);
 }
 
@@ -17,7 +20,15 @@ if (!clientId) {
   process.exit(1);
 }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// Create a client with intents and partials needed for message & reaction handling
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMessageReactions
+  ],
+  partials: [Partials.Message, Partials.Reaction, Partials.Channel]
+});
 client.commands = new Collection();
 
 const commandsPath = path.join(__dirname, 'commands');
@@ -28,13 +39,14 @@ for (const file of commandFiles) {
   const filePath = path.join(commandsPath, file);
   const command = require(filePath);
 
-  if (!command.data || !command.execute) {
+  if (!command || !command.data || !command.execute) {
     console.warn(`Skipping command file ${file}: missing data or execute`);
     continue;
   }
 
-  client.commands.set(command.data.name, command);
-  commands.push(command.data.toJSON());
+  // store command by name for execution
+  client.commands.set(command.data.name ?? command.data.name?.toString(), command);
+  try { commands.push(command.data.toJSON()); } catch (e) { console.warn('Failed to serialize command data for', file, e); }
 }
 
 const rest = new REST({ version: '10' }).setToken(token);
@@ -42,9 +54,11 @@ const rest = new REST({ version: '10' }).setToken(token);
 (async () => {
   try {
     console.log(`Registering ${commands.length} commands...`);
-    if (guildId) {
-      await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
-      console.log(`Registered slash commands to guild ${guildId}`);
+    if (guildIds.length > 0) {
+      for (const id of guildIds) {
+        await rest.put(Routes.applicationGuildCommands(clientId, id), { body: commands });
+        console.log(`Registered slash commands to guild ${id}`);
+      }
     } else {
       await rest.put(Routes.applicationCommands(clientId), { body: commands });
       console.log('Registered slash commands globally');
@@ -58,16 +72,16 @@ const rest = new REST({ version: '10' }).setToken(token);
   });
 
   client.on('interactionCreate', async interaction => {
-    if (!interaction.isCommand()) return;
+    if (!interaction.isCommand && !interaction.isChatInputCommand) return;
 
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
 
     try {
-      await command.execute(interaction);
+      // pass client as second argument to command.execute for commands that need it
+      await command.execute(interaction, client);
     } catch (error) {
       console.error(`Error executing ${interaction.commandName}:`, error);
-      // Try to notify the user, but don't let API errors crash the bot.
       try {
         if (interaction.replied || interaction.deferred) {
           await interaction.followUp({ content: 'There was an error while executing this command.', ephemeral: true }).catch(err => console.error('FollowUp failed:', err));
@@ -77,6 +91,28 @@ const rest = new REST({ version: '10' }).setToken(token);
       } catch (notifyErr) {
         console.error('Failed to send error response to interaction:', notifyErr);
       }
+    }
+  });
+
+  client.on('messageReactionAdd', async (reaction, user) => {
+    try {
+      const command = client.commands.get('raid');
+      if (command && typeof command.handleReaction === 'function') {
+        await command.handleReaction(reaction, user, client);
+      }
+    } catch (err) {
+      console.error('Error handling reaction add:', err);
+    }
+  });
+
+  client.on('messageReactionRemove', async (reaction, user) => {
+    try {
+      const command = client.commands.get('raid');
+      if (command && typeof command.handleReaction === 'function') {
+        await command.handleReaction(reaction, user, client);
+      }
+    } catch (err) {
+      console.error('Error handling reaction remove:', err);
     }
   });
 

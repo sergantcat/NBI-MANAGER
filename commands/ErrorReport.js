@@ -54,7 +54,7 @@ module.exports = {
         const responseEmbed = new EmbedBuilder()
             .setTitle('Report Submitted')
             .setColor('#00b7ff')
-            .setDescription('Your issue has been sent to the developer.')
+            .setDescription('Your issue has been sent to the developer!.')
             .addFields(
                 { name: 'Issue', value: issueText },
                 { name: 'Report ID', value: reportId },

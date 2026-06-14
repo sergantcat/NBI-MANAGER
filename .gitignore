@@ -1,7 +1,11 @@
 .env
+.env.local
 node_modules
 .vscode/
+raids.db
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 *.log
 
 
