@@ -1,3 +1,4 @@
+// WARNING REBOOT COMMAND WILL BE REVAMPED 
 const { SlashCommandBuilder } = require('discord.js');
 
 module.exports = {
@@ -6,11 +7,22 @@ module.exports = {
         .setDescription('Reboots the bot (Dev only)'),
 
     async execute(interaction) {
-        const ownersRaw = process.env.OWNER_IDS || process.env.OWNER_ID || '';
-        const ownerIds = ownersRaw.split(',').map(s => s.trim()).filter(Boolean);
+        let ownersRaw = process.env.OWNER_IDS || process.env.OWNER_ID || '';
+        let ownerIds = ownersRaw.split(',').map(s => s.trim()).filter(Boolean);
 
         if (ownerIds.length === 0) {
-            await interaction.reply({ content: 'Reboot is restricted. Set OWNER_IDS in .env to your Discord ID.', flags: 64 });
+            const application = interaction.client.application ? await interaction.client.application.fetch() : null;
+            if (application?.owner) {
+                if (application.owner.members && typeof application.owner.members.map === 'function') {
+                    ownerIds = application.owner.members.map(member => member.user.id);
+                } else if (application.owner.id) {
+                    ownerIds = [application.owner.id];
+                }
+            }
+        }
+
+        if (ownerIds.length === 0) {
+            await interaction.reply({ content: 'Reboot is restricted. Set OWNER_IDS or OWNER_ID in .env to your Discord ID.', flags: 64 });
             return;
         }
 
@@ -21,7 +33,6 @@ module.exports = {
 
         await interaction.reply({ content: 'Rebooting...', flags: 64 });
 
-        // give Discord time to receive the response, then destroy client and exit
         setTimeout(async () => {
             try {
                 await interaction.client.destroy();

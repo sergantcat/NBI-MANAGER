@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('BotPing')
+        .setName('botping')
         .setDescription('Replies with bot latency and API latency'),
 
     async execute(interaction) {

@@ -58,7 +58,7 @@ module.exports = {
             .addFields(
                 { name: 'Issue', value: issueText },
                 { name: 'Report ID', value: reportId },
-                { name: 'Status', value: notified ? 'Owner notified' : 'Notification failed - contact me directly' }
+                { name: 'Status', value: notified ? 'Owner notified' : 'Notification failed - contact NBI Staff or erycd14(@sergantcat) directly' }
             );
 
         await interaction.reply({ embeds: [responseEmbed], ephemeral: true });
