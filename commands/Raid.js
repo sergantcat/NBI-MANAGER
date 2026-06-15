@@ -122,7 +122,7 @@ async function scheduleRaid(interaction, client) {
 
         const nbiEmbed = new EmbedBuilder()
             .setTitle('NBI Raid Schedule')
-            .setDescription(`Raid ID: ${raidId}\nHost: ${host}\nScheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)`)
+            .setDescription(`Raid ID: ${raidId}\nHost: ${interaction.user}\nScheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)`)
             .addFields(
                 { name: 'Raiders', value: 'Raiders Reaction Count: 0', inline: false },
                 { name: 'Security Tracker', value: 'Security Reaction Count: 0', inline: false },
