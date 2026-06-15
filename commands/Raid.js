@@ -121,22 +121,59 @@ async function scheduleRaid(interaction, client) {
         }
 
         const nbiEmbed = new EmbedBuilder()
-            .setTitle('NBI Raid Schedule')
-            .setDescription(`Raid ID: ${raidId}\nHost: ${interaction.user}\nScheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)`)
+            .setTitle('# NBI Raid Has been Sheduled')
+            .setDescription(`Raid ID: ${raidId}
+                -# <@&1511689349899485224>
+
+                \nHost: <@${interaction.user.id}>
+
+                \nRaid Time: <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)
+                React with ✅ If you want to Participate in it,
+                also please make sure you have enough time to participate in it.
+                
+                # Raid Rules
+                >>> all Raider and NBI rules apply
+               * Do not sabotage other people
+                * Work as a team.
+                * Listen to the Raid Host
+                * 
+                * Note: try to doge the bullets
+                * and use your tactical and all other skills to win`)
+
+                
             .addFields(
-                { name: 'Raiders', value: 'Raiders Reaction Count: 0', inline: false },
-                { name: 'Security Tracker', value: 'Security Reaction Count: 0', inline: false },
-                { name: 'Embed ID', value: raidId, inline: false }
+                { name: 'Raiders', value: 'NBI Reactions ✅: 0', inline: false },
+
+                { name: 'Security Tracker', value: 'NDRIDD Reactions ✅: 0', inline: false },
+
+                { name: 'Raid ID', value: raidId, inline: false }
             )
             .setTimestamp();
 
         const ndriddEmbed = new EmbedBuilder()
-            .setTitle('NBI Raid Sheduled')
-            .setDescription(`Raid ID: ${raidId}\nHost: ${host}\nScheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)
-                Prepare to Defend the facility from Missiles launch`)
+            .setTitle(' # NBI Raid Sheduled')
+            
+            .setDescription(`Raid ID: ${raidId}
+                -# <@&1466769214512693402>
+                \nHost: <@${interaction.user.id}>
+
+                \nRaid Time: <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)
+
+                 React with ✅ If you want to Participate in it,
+                also please make sure you have enough time to participate in it.
+
+            All attending Security Personal Please get ready to Defend the Facility
+            
+            # Tips
+            * Try to doge the bullets
+            * Camp the door in Missle silo
+            * Work as a Team Teamwork = win 
+            * And listen to The Team Lead`)
             .addFields(
-                { name: 'Security', value: 'Security Reaction Count: 0', inline: false },
-                { name: 'Raiders Tracker', value: 'Raiders Reaction Count: 0', inline: false },
+                { name: 'Security', value: 'NDRIDD Reactions ✅: 0', inline: false },
+
+                { name: 'Raiders Tracker', value: 'NBI Reactions ✅: 0', inline: false },
+                
                 { name: 'Embed ID', value: raidId, inline: false }
             )
             .setTimestamp();
