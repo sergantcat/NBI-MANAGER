@@ -11,7 +11,7 @@ module.exports = {
         const serverLocation = interaction.guild?.preferredLocale ?? 'Unknown';
 
         const embed = new EmbedBuilder()
-            .setTitle('Pong 🏓')
+            .setTitle('Pong 🏓 here is some data')
             .setColor('#00b7ff')
             .setDescription('Here you can see the bot\'s ping and server location')
             .addFields(
