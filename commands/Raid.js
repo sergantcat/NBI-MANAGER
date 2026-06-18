@@ -142,16 +142,16 @@ async function scheduleRaid(interaction, client) {
 
                 
             .addFields(
-                { name: 'Raiders', value: 'NBI Reactions ✅: 0', inline: false },
+                { name: '', value: 'NBI Reactions ✅: 0', inline: false },
 
-                { name: 'Security Tracker', value: 'NDRIDD Reactions ✅: 0', inline: false },
+                { name: '', value: 'NDRIDD Reactions ✅: 0', inline: false },
 
                 
             )
             .setTimestamp();
 
         const ndriddEmbed = new EmbedBuilder()
-            .setTitle(' # NBI Raid Sheduled')
+            .setTitle('NBI Raid Has been Sheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)')
             
             .setDescription(`Raid ID: ${raidId}
                 -# <@&1466769214512693402>

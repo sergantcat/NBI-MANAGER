@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Client, Collection, GatewayIntentBits, Partials, REST, Routes } = require('discord.js');
+const { setupGlobalErrorReporting } = require('./lib/errorReporter');
 require('dotenv').config();
 
 const token = process.env.DISCORD_TOKEN || process.env.TOKEN;
@@ -30,6 +31,7 @@ const client = new Client({
   partials: [Partials.Message, Partials.Reaction, Partials.Channel]
 });
 client.commands = new Collection();
+const errorReporter = setupGlobalErrorReporting(client);
 
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -37,7 +39,14 @@ const commands = [];
 
 for (const file of commandFiles) {
   const filePath = path.join(commandsPath, file);
-  const command = require(filePath);
+  let command;
+
+  try {
+    command = require(filePath);
+  } catch (error) {
+    console.error(`Failed to load command file ${file}:`, error);
+    continue;
+  }
 
   if (!command || !command.data || !command.execute) {
     console.warn(`Skipping command file ${file}: missing data or execute`);
@@ -81,7 +90,13 @@ const rest = new REST({ version: '10' }).setToken(token);
       // pass client as second argument to command.execute for commands that need it
       await command.execute(interaction, client);
     } catch (error) {
-      console.error(`Error executing ${interaction.commandName}:`, error);
+      errorReporter.originalConsoleError(`Error executing ${interaction.commandName}:`, error);
+      errorReporter.report(`command:${interaction.commandName}`, error, {
+        commandName: interaction.commandName,
+        user: `${interaction.user.tag} (${interaction.user.id})`,
+        guild: interaction.guild ? `${interaction.guild.name} (${interaction.guildId})` : interaction.guildId,
+        channel: interaction.channelId
+      });
       try {
         if (interaction.replied || interaction.deferred) {
           await interaction.followUp({ content: 'There was an error while executing this command.', ephemeral: true }).catch(err => console.error('FollowUp failed:', err));
@@ -89,7 +104,13 @@ const rest = new REST({ version: '10' }).setToken(token);
           await interaction.reply({ content: 'There was an error while executing this command.', ephemeral: true }).catch(err => console.error('Reply failed:', err));
         }
       } catch (notifyErr) {
-        console.error('Failed to send error response to interaction:', notifyErr);
+        errorReporter.originalConsoleError('Failed to send error response to interaction:', notifyErr);
+        errorReporter.report('interactionErrorResponse', notifyErr, {
+          commandName: interaction.commandName,
+          user: `${interaction.user.tag} (${interaction.user.id})`,
+          guild: interaction.guild ? `${interaction.guild.name} (${interaction.guildId})` : interaction.guildId,
+          channel: interaction.channelId
+        });
       }
     }
   });
@@ -101,7 +122,12 @@ const rest = new REST({ version: '10' }).setToken(token);
         await command.handleReaction(reaction, user, client);
       }
     } catch (err) {
-      console.error('Error handling reaction add:', err);
+      errorReporter.originalConsoleError('Error handling reaction add:', err);
+      errorReporter.report('messageReactionAdd', err, {
+        user: `${user.tag} (${user.id})`,
+        guild: reaction.message?.guild ? `${reaction.message.guild.name} (${reaction.message.guildId})` : reaction.message?.guildId,
+        channel: reaction.message?.channelId
+      });
     }
   });
 
@@ -112,7 +138,12 @@ const rest = new REST({ version: '10' }).setToken(token);
         await command.handleReaction(reaction, user, client);
       }
     } catch (err) {
-      console.error('Error handling reaction remove:', err);
+      errorReporter.originalConsoleError('Error handling reaction remove:', err);
+      errorReporter.report('messageReactionRemove', err, {
+        user: `${user.tag} (${user.id})`,
+        guild: reaction.message?.guild ? `${reaction.message.guild.name} (${reaction.message.guildId})` : reaction.message?.guildId,
+        channel: reaction.message?.channelId
+      });
     }
   });
 
