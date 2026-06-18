@@ -4,12 +4,17 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('botstatus')
     .setDescription('Displays the current status of the bot'),
+    
 
   async execute(interaction) {
     await interaction.deferReply({ flags: 64 });
 
     const botStatusEmbed = new EmbedBuilder()
-      .setColor('#0099ff')
+      .setColor('#02050769')
+      .setAuthor({
+        name: interaction.client.user.username,
+        iconURL: interaction.client.user.displayAvatarURL()
+      })
       .setTitle('Bot Status')
       .setDescription('Here is the current status of the bot:')
       .addFields(

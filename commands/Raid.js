@@ -4,11 +4,28 @@ const db = require('../lib/db');
 
 const NBI_CHANNEL_ID = normalizeChannelId(process.env.NBI_RAID_CHANNEL_ID);
 const NDRIDD_CHANNEL_ID = normalizeChannelId(process.env.NDRIDD_SECURITY_CHANNEL_ID);
+const NBI_RAID_ROLE_ID = '1511689349899485224';
+const NDRIDD_RAID_ROLE_ID = '1466769214512693402';
+const NBI_RAID_PING = `<@&${NBI_RAID_ROLE_ID}>`;
+const NDRIDD_RAID_PING = `<@&${NDRIDD_RAID_ROLE_ID}>`;
+const RAID_HOST_ROLE_IDS = parseRoleIds(process.env.RAID_HOST_ROLE_IDS || process.env.RAID_HOSTING_ROLE_IDS);
 const REACTION_EMOJI = process.env.REACTION_EMOJI || '✅';
 
 function normalizeChannelId(channelId) {
     if (typeof channelId !== 'string' || !channelId.trim()) return null;
     return channelId.trim().replace(/^['"]+|['"]+$/g, '');
+}
+
+function parseRoleIds(value) {
+    if (!value) return [];
+    return value
+        .split(',')
+        .map(roleId => roleId.trim().replace(/^<@&|>$/g, ''))
+        .filter(Boolean);
+}
+
+function canRunRaidCommand(interaction) {
+    return RAID_HOST_ROLE_IDS.some(roleId => interaction.member?.roles?.cache?.has(roleId));
 }
 
 function generateRaidId() {
@@ -85,6 +102,14 @@ module.exports = {
         ),
 
     async execute(interaction, client) {
+        if (!interaction.guildId) {
+            return interaction.reply({ content: 'Raid commands can only be used inside a server.', ephemeral: true });
+        }
+
+        if (!canRunRaidCommand(interaction)) {
+            return interaction.reply({ content: 'You need an allowed raid hosting role to use raid commands.', ephemeral: true });
+        }
+
         const subcommand = interaction.options.getSubcommand();
         if (subcommand === 'schedule') return scheduleRaid(interaction, client);
         if (subcommand === 'start') return updateRaidStatus(interaction, 'started', client);
@@ -122,17 +147,24 @@ async function scheduleRaid(interaction, client) {
 
         const nbiEmbed = new EmbedBuilder()
         
-            .setTitle('# NBI Raid Has been Sheduled')
+            .setTitle('NBI Raid Has been Sheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)')
+            .setAuthor({
+    name: client.user.username,
+    iconURL: client.user.displayAvatarURL()
+})
             .setDescription(`Raid ID: ${raidId}
-                -# <@&1511689349899485224>
+                
 
-                \nHost: <@${interaction.user.id}>
+                \nRaid Host: <@${interaction.user.id}>
+                
 
                 \nRaid Time: <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)
+
                 React with ✅ If you want to Participate in it,
                 also please make sure you have enough time to participate in it.
                 
  # Raid Rules
+
  >>> all Raider and NBI rules apply
 * Do not sabotage other people
 * Work as a team.
@@ -152,14 +184,17 @@ async function scheduleRaid(interaction, client) {
 
         const ndriddEmbed = new EmbedBuilder()
             .setTitle('NBI Raid Has been Sheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)')
-            
+            .setAuthor({
+    name: client.user.username,
+    iconURL: client.user.displayAvatarURL()
+})
             .setDescription(`Raid ID: ${raidId}
-                -# <@&1466769214512693402>
-                \nHost: <@${interaction.user.id}>
+                
+                \nRaid Host: <@${interaction.user.id}>
 
                 \nRaid Time: <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)
 
-                 React with ✅ If you want to Participate in it,
+                React with ✅ If you want to Participate in it,
                 also please make sure you have enough time to participate in it.
 
             All attending Security Personal Please get ready to Defend the Facility
@@ -181,8 +216,16 @@ async function scheduleRaid(interaction, client) {
         let nbiMessage;
         let ndriddMessage;
         try {
-            nbiMessage = await nbiChannel.send({ embeds: [nbiEmbed] });
-            ndriddMessage = await ndriddChannel.send({ embeds: [ndriddEmbed] });
+            nbiMessage = await nbiChannel.send({
+                content: NBI_RAID_PING,
+                embeds: [nbiEmbed],
+                allowedMentions: { roles: [NBI_RAID_ROLE_ID] }
+            });
+            ndriddMessage = await ndriddChannel.send({
+                content: NDRIDD_RAID_PING,
+                embeds: [ndriddEmbed],
+                allowedMentions: { roles: [NDRIDD_RAID_ROLE_ID] }
+            });
         } catch (err) {
             return interaction.reply({ content: `Failed to send raid embeds: ${err.message}`, ephemeral: true });
         }
@@ -300,7 +343,12 @@ async function sendRaidEmbedToChannels(raid, client, embed) {
         try {
             const channel = await client.channels.fetch(channelId);
             if (!channel || !channel.isTextBased()) return null;
-            return await channel.send({ embeds: [embed] });
+            const ping = getRaidPingForChannel(raid, channelId);
+            return await channel.send({
+                content: ping.content,
+                embeds: [embed],
+                allowedMentions: { roles: [ping.roleId] }
+            });
         } catch (err) {
             console.error('Failed to send raid command embed to channel', err);
             return null;
@@ -309,6 +357,14 @@ async function sendRaidEmbedToChannels(raid, client, embed) {
 
     await sendMessage(raid.channel_id);
     await sendMessage(raid.other_channel_id);
+}
+
+function getRaidPingForChannel(raid, channelId) {
+    if (channelId === raid.other_channel_id) {
+        return { content: NDRIDD_RAID_PING, roleId: NDRIDD_RAID_ROLE_ID };
+    }
+
+    return { content: NBI_RAID_PING, roleId: NBI_RAID_ROLE_ID };
 }
 
 async function handleRaidReaction(reaction, user, client) {
