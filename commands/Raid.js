@@ -121,6 +121,7 @@ async function scheduleRaid(interaction, client) {
         }
 
         const nbiEmbed = new EmbedBuilder()
+        
             .setTitle('# NBI Raid Has been Sheduled')
             .setDescription(`Raid ID: ${raidId}
                 -# <@&1511689349899485224>
@@ -131,14 +132,13 @@ async function scheduleRaid(interaction, client) {
                 React with ✅ If you want to Participate in it,
                 also please make sure you have enough time to participate in it.
                 
-                # Raid Rules
-                >>> all Raider and NBI rules apply
-               * Do not sabotage other people
-                * Work as a team.
-                * Listen to the Raid Host
-                * 
-                * Note: try to doge the bullets
-                * and use your tactical and all other skills to win`)
+ # Raid Rules
+ >>> all Raider and NBI rules apply
+* Do not sabotage other people
+* Work as a team.
+* Listen to the Raid Host
+* Note: try to doge the bullets
+* and use your tactical and all other skills to win`)
 
                 
             .addFields(
@@ -146,7 +146,7 @@ async function scheduleRaid(interaction, client) {
 
                 { name: 'Security Tracker', value: 'NDRIDD Reactions ✅: 0', inline: false },
 
-                { name: 'Raid ID', value: raidId, inline: false }
+                
             )
             .setTimestamp();
 
@@ -174,7 +174,7 @@ async function scheduleRaid(interaction, client) {
 
                 { name: 'Raiders Tracker', value: 'NBI Reactions ✅: 0', inline: false },
                 
-                { name: 'Embed ID', value: raidId, inline: false }
+                
             )
             .setTimestamp();
 
@@ -379,8 +379,8 @@ async function handleRaidReaction(reaction, user, client) {
     };
 
     const updatedFields = {
-        primary: message.id === raid.message_id ? 'Raiders Reaction Count' : 'Security Reaction Count',
-        secondary: message.id === raid.message_id ? 'Security Reaction Count' : 'Raiders Reaction Count'
+        primary: message.id === raid.message_id ? 'NBI Reactions✅' : 'NDRIDD Reactions✅',
+        secondary: message.id === raid.message_id ? 'NDRIDD Reactions✅' : 'NBI Reactions✅'
     };
 
     await updateEmbed(primaryMessage, updatedFields.primary, updatedFields.secondary, primaryCount, secondaryCount);
