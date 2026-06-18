@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../lib/db');
 
 const NBI_CHANNEL_ID = normalizeChannelId(process.env.NBI_RAID_CHANNEL_ID);
@@ -39,6 +39,55 @@ async function resolveChannel(client, channelId) {
     } catch {
         return null;
     }
+}
+
+function describeChannel(channel) {
+    const guildName = channel.guild?.name || channel.guildId || 'unknown guild';
+    return `#${channel.name || channel.id} (${channel.id}) in ${guildName}`;
+}
+
+function missingSendPermissions(channel, client) {
+    const permissions = channel.permissionsFor(client.user);
+    if (!permissions) return ['ViewChannel', 'SendMessages'];
+
+    return [
+        [PermissionFlagsBits.ViewChannel, 'ViewChannel'],
+        [PermissionFlagsBits.SendMessages, 'SendMessages'],
+        [PermissionFlagsBits.EmbedLinks, 'EmbedLinks'],
+        [PermissionFlagsBits.AddReactions, 'AddReactions']
+    ]
+        .filter(([permission]) => !permissions.has(permission))
+        .map(([, name]) => name);
+}
+
+async function validateRaidChannel(client, interaction, label, channelId) {
+    if (!channelId) {
+        return { error: `${label} channel ID is missing in .env.` };
+    }
+
+    const channel = await resolveChannel(client, channelId);
+    if (!channel) {
+        return { error: `${label} channel ${channelId} could not be fetched. Make sure the bot is in that server and can view the channel.` };
+    }
+
+    if (!channel.isTextBased()) {
+        return { error: `${label} channel ${describeChannel(channel)} is not a text channel.` };
+    }
+
+    if (label === 'NDRIDD' && channel.id === interaction.channelId) {
+        return {
+            error: `NDRIDD_SECURITY_CHANNEL_ID currently resolves to the channel where this command was run: ${describeChannel(channel)}. Put the real NDRIDD security channel ID in .env and restart the bot.`
+        };
+    }
+
+    const missingPermissions = missingSendPermissions(channel, client);
+    if (missingPermissions.length > 0) {
+        return {
+            error: `${label} channel ${describeChannel(channel)} is missing bot permissions: ${missingPermissions.join(', ')}.`
+        };
+    }
+
+    return { channel };
 }
 
 module.exports = {
@@ -138,16 +187,23 @@ async function scheduleRaid(interaction, client) {
         const raidId = generateRaidId();
         const host = interaction.user.tag;
 
-        const nbiChannel = await resolveChannel(client, NBI_CHANNEL_ID);
-        const ndriddChannel = await resolveChannel(client, NDRIDD_CHANNEL_ID);
+        const nbiTarget = await validateRaidChannel(client, interaction, 'NBI', NBI_CHANNEL_ID);
+        const ndriddTarget = await validateRaidChannel(client, interaction, 'NDRIDD', NDRIDD_CHANNEL_ID);
+        const channelErrors = [nbiTarget.error, ndriddTarget.error].filter(Boolean);
 
-        if (!nbiChannel || !ndriddChannel) {
-            return interaction.reply({ content: 'Missing configured raid channel IDs in .env or channels are unavailable.', ephemeral: true });
+        if (channelErrors.length > 0) {
+            return interaction.reply({
+                content: `Raid channel configuration problem:\n${channelErrors.map(error => `- ${error}`).join('\n')}`,
+                ephemeral: true
+            });
         }
+
+        const nbiChannel = nbiTarget.channel;
+        const ndriddChannel = ndriddTarget.channel;
 
         const nbiEmbed = new EmbedBuilder()
         
-            .setTitle('NBI Raid Has been Sheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)')
+            .setTitle(`NBI Raid Has been Scheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)`)
             .setAuthor({
     name: client.user.username,
     iconURL: client.user.displayAvatarURL()
@@ -183,7 +239,7 @@ async function scheduleRaid(interaction, client) {
             .setTimestamp();
 
         const ndriddEmbed = new EmbedBuilder()
-            .setTitle('NBI Raid Has been Sheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)')
+            .setTitle(`NBI Raid Has been Scheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)`)
             .setAuthor({
     name: client.user.username,
     iconURL: client.user.displayAvatarURL()
@@ -249,7 +305,10 @@ async function scheduleRaid(interaction, client) {
             console.error('DB insert raid error', err);
         }
 
-        return interaction.reply({ content: `Raid scheduled with ID: ${raidId}. NBI channel: <#${nbiChannel.id}>, NDRIDD channel: <#${ndriddChannel.id}>`, ephemeral: true });
+        return interaction.reply({
+            content: `Raid scheduled with ID: ${raidId}.\nNBI: ${describeChannel(nbiChannel)}\nNDRIDD: ${describeChannel(ndriddChannel)}`,
+            ephemeral: true
+        });
     } catch (err) {
         console.error('scheduleRaid failed:', err);
         if (!interaction.replied && !interaction.deferred) {
