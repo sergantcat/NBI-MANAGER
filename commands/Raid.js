@@ -60,7 +60,7 @@ function missingSendPermissions(channel, client) {
         .map(([, name]) => name);
 }
 
-async function validateRaidChannel(client, interaction, label, channelId) {
+async function validateRaidChannel(client, label, channelId) {
     if (!channelId) {
         return { error: `${label} channel ID is missing in .env.` };
     }
@@ -72,12 +72,6 @@ async function validateRaidChannel(client, interaction, label, channelId) {
 
     if (!channel.isTextBased()) {
         return { error: `${label} channel ${describeChannel(channel)} is not a text channel.` };
-    }
-
-    if (label === 'NDRIDD' && channel.id === interaction.channelId) {
-        return {
-            error: `NDRIDD_SECURITY_CHANNEL_ID currently resolves to the channel where this command was run: ${describeChannel(channel)}. Put the real NDRIDD security channel ID in .env and restart the bot.`
-        };
     }
 
     const missingPermissions = missingSendPermissions(channel, client);
@@ -174,27 +168,28 @@ module.exports = {
 
 async function scheduleRaid(interaction, client) {
     try {
+        await interaction.deferReply({ ephemeral: true });
+
         if (!process.env.DATABASE_URL) {
-            return interaction.reply({ content: 'This command requires an external Postgres database. Set DATABASE_URL in your .env and restart the bot.', ephemeral: true });
+            return interaction.editReply({ content: 'This command requires an external Postgres database. Set DATABASE_URL in your .env and restart the bot.' });
         }
 
         const tsString = interaction.options.getString('timestamp');
         const scheduledAt = parseInt(tsString, 10);
         if (Number.isNaN(scheduledAt) || scheduledAt < 0) {
-            return interaction.reply({ content: 'Invalid unix timestamp provided.', ephemeral: true });
+            return interaction.editReply({ content: 'Invalid unix timestamp provided.' });
         }
 
         const raidId = generateRaidId();
         const host = interaction.user.tag;
 
-        const nbiTarget = await validateRaidChannel(client, interaction, 'NBI', NBI_CHANNEL_ID);
-        const ndriddTarget = await validateRaidChannel(client, interaction, 'NDRIDD', NDRIDD_CHANNEL_ID);
+        const nbiTarget = await validateRaidChannel(client, 'NBI', NBI_CHANNEL_ID);
+        const ndriddTarget = await validateRaidChannel(client, 'NDRIDD', NDRIDD_CHANNEL_ID);
         const channelErrors = [nbiTarget.error, ndriddTarget.error].filter(Boolean);
 
         if (channelErrors.length > 0) {
-            return interaction.reply({
-                content: `Raid channel configuration problem:\n${channelErrors.map(error => `- ${error}`).join('\n')}`,
-                ephemeral: true
+            return interaction.editReply({
+                content: `Raid channel configuration problem:\n${channelErrors.map(error => `- ${error}`).join('\n')}`
             });
         }
 
@@ -283,7 +278,7 @@ async function scheduleRaid(interaction, client) {
                 allowedMentions: { roles: [NDRIDD_RAID_ROLE_ID] }
             });
         } catch (err) {
-            return interaction.reply({ content: `Failed to send raid embeds: ${err.message}`, ephemeral: true });
+            return interaction.editReply({ content: `Failed to send raid embeds: ${err.message}` });
         }
 
         try { await nbiMessage.react(REACTION_EMOJI); } catch (e) {}
@@ -305,15 +300,14 @@ async function scheduleRaid(interaction, client) {
             console.error('DB insert raid error', err);
         }
 
-        return interaction.reply({
-            content: `Raid scheduled with ID: ${raidId}.\nNBI: ${describeChannel(nbiChannel)}\nNDRIDD: ${describeChannel(ndriddChannel)}`,
-            ephemeral: true
+        return interaction.editReply({
+            content: `Raid scheduled with ID: ${raidId}.\nNBI: ${describeChannel(nbiChannel)}\nNDRIDD: ${describeChannel(ndriddChannel)}`
         });
     } catch (err) {
         console.error('scheduleRaid failed:', err);
-        if (!interaction.replied && !interaction.deferred) {
-            return interaction.reply({ content: 'Raid embed sent but scheduling failed. Please check logs.', ephemeral: true });
-        }
+        const response = { content: 'Raid scheduling failed. Please check the bot logs.' };
+        if (interaction.deferred || interaction.replied) return interaction.editReply(response).catch(() => {});
+        return interaction.reply({ ...response, ephemeral: true }).catch(() => {});
     }
 }
 

@@ -1,8 +1,12 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const { parseRoleIds, hasAnyRole } = require('../lib/rolePermissions');
+const { deleteBlacklist } = require('../lib/moderationDb');
 
 const dbPath = path.join(__dirname, '..', 'blacklist.json');
+const BLACKLIST_COMMAND_ROLE_IDS = parseRoleIds(process.env.BLACKLIST_COMMAND_ROLE_IDS || process.env.MODERATION_COMMAND_ROLE_IDS);
+const BLACKLIST_ROLE_ID = parseRoleIds(process.env.BLACKLIST_ROLE_ID || process.env.BLACKLIST_ROLE_IDS)[0] || null;
 
 function loadDatabase() {
   if (!fs.existsSync(dbPath)) {
@@ -33,6 +37,18 @@ module.exports = {
     ),
 
   async execute(interaction) {
+    if (!interaction.guildId) {
+      return interaction.reply({ content: 'This command can only be used inside a server.', ephemeral: true });
+    }
+
+    if (!hasAnyRole(interaction, BLACKLIST_COMMAND_ROLE_IDS)) {
+      return interaction.reply({ content: 'You need an allowed blacklist role to use this command.', ephemeral: true });
+    }
+
+    if (!BLACKLIST_ROLE_ID) {
+      return interaction.reply({ content: 'Set BLACKLIST_ROLE_ID in .env before using this command.', ephemeral: true });
+    }
+
     await interaction.deferReply({ flags: 64 });
 
     const targetUser = interaction.options.getUser('user');
@@ -41,17 +57,34 @@ module.exports = {
     try {
       // Load database
       const db = loadDatabase();
-      const existingIndex = db.blacklistedUsers.findIndex(u => u.userId === targetUser.id);
+      const existingIndex = db.blacklistedUsers.findIndex(u =>
+        u.userId === targetUser.id && (!u.guildId || u.guildId === interaction.guildId)
+      );
 
-      if (existingIndex === -1) {
-        await interaction.editReply({ content: `${targetUser.tag} is not on the blacklist.`, flags: 64 });
-        return;
+      let targetMember = interaction.options.getMember('user');
+      if (!targetMember) {
+        targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
       }
 
-      // Remove from blacklist
-      const removed = db.blacklistedUsers[existingIndex];
-      db.blacklistedUsers.splice(existingIndex, 1);
-      saveDatabase(db);
+      let roleRemoved = false;
+      if (targetMember?.roles.cache.has(BLACKLIST_ROLE_ID)) {
+        await targetMember.roles.remove(
+          BLACKLIST_ROLE_ID,
+          `Unblacklisted by ${interaction.user.tag}: ${reason}`
+        );
+        roleRemoved = true;
+      }
+
+      const removed = existingIndex >= 0 ? db.blacklistedUsers[existingIndex] : null;
+      if (existingIndex >= 0) {
+        db.blacklistedUsers.splice(existingIndex, 1);
+        saveDatabase(db);
+      }
+      await deleteBlacklist(interaction.guildId, targetUser.id);
+
+      if (!removed && !roleRemoved) {
+        return interaction.editReply({ content: `${targetUser.tag} is not on this server's blacklist.`, flags: 64 });
+      }
 
       // Create embed for DM
       const dmEmbed = new EmbedBuilder()
@@ -70,7 +103,7 @@ module.exports = {
       try {
         await targetUser.send({ embeds: [dmEmbed] });
       } catch (dmError) {
-        console.error(`Failed to send DM to ${targetUser.tag}:`, dmError.message);
+        console.warn(`Failed to send unblacklist DM to ${targetUser.tag}:`, dmError.message);
       }
 
       // Reply to interaction
@@ -79,7 +112,8 @@ module.exports = {
         .setColor('#00ff00')
         .addFields(
           { name: 'User', value: `${targetUser.tag} (${targetUser.id})`, inline: false },
-          { name: 'Previous Reason', value: removed.reason, inline: false },
+          { name: 'Previous Reason', value: removed?.reason || 'No stored reason', inline: false },
+          { name: 'Role Removed', value: roleRemoved ? 'Yes' : 'Role was not present', inline: false },
           { name: 'Removal Reason', value: reason, inline: false }
         )
         .setTimestamp();
