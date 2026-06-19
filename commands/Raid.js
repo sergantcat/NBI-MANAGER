@@ -219,10 +219,10 @@ async function scheduleRaid(interaction, client) {
             .setDescription(`Raid ID: ${raidId}
                 
 
-                \nRaid Host: <@${interaction.user.id}>
+                \n'Raid Host': <@${interaction.user.id}>
                 
 
-                \nRaid Time: <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)
+                \n'Raid Time': <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)
 
                 React with ✅ If you want to Participate in it,
                 also please make sure you have enough time to participate in it.
@@ -255,7 +255,7 @@ async function scheduleRaid(interaction, client) {
 })
             .setDescription(`Invasion ID: ${raidId}
                 
-                \nRInvasion Host: <@${interaction.user.id}>
+                \n'Invasion Host': <@${interaction.user.id}>
 
                 \nInvasion Time: <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)
 
