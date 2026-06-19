@@ -350,11 +350,18 @@ async function updateRaidStatus(interaction, newStatus, client) {
     }
 
     const statusLabel = newStatus === 'started' ? 'Raid Started' : newStatus === 'cancelled' ? 'Raid Cancelled' : 'Raid Concluded';
-    const serverInfoLine = serverInfo ? `\nServer Information: ${serverInfo}` : '';
+    const serverInfoLine = serverInfo ? `
+    
+    \nServer Information: ${serverInfo}` : '';
+
     const statusEmbed = new EmbedBuilder()
-        .setColor('#FFA500')
+        .setColor('#00ff37')
         .setTitle(statusLabel)
-        .setDescription(`Raid ID: ${raidId}\nScheduled for <t:${raid.scheduled_at}:F> (<t:${raid.scheduled_at}:R>)\nStatus: ${newStatus}${serverInfoLine}`)
+        .setDescription(`Raid ID: ${raidId}
+
+            \nScheduled for <t:${raid.scheduled_at}:F> (<t:${raid.scheduled_at}:R>)
+
+            \nStatus: ${newStatus}${serverInfoLine}`)
         .addFields(
             { name: 'Embed ID', value: raidId, inline: false }
         )
