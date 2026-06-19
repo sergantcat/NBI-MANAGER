@@ -22,7 +22,7 @@ module.exports = {
                 { name: 'Source Code', value: 'https://github.com/sergantcat/NBI-Manager', inline: true }
             )
             .setThumbnail(interaction.client.user.displayAvatarURL())
-            .setColor('#ff6600');
+            .setColor('#00ff15');
 
         await interaction.reply({ embeds: [embed] });
     },
