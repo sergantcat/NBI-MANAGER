@@ -1,9 +1,6 @@
-require('dotenv').config();
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const db = require('../lib/db');
 
-const NBI_CHANNEL_ID = normalizeChannelId(process.env.NBI_RAID_CHANNEL_ID);
-const NDRIDD_CHANNEL_ID = normalizeChannelId(process.env.NDRIDD_SECURITY_CHANNEL_ID);
 const NBI_RAID_ROLE_ID = '1511689349899485224';
 const NDRIDD_RAID_ROLE_ID = '1466769214512693402';
 const NBI_RAID_PING = `<@&${NBI_RAID_ROLE_ID}>`;
@@ -14,6 +11,13 @@ const REACTION_EMOJI = process.env.REACTION_EMOJI || '✅';
 function normalizeChannelId(channelId) {
     if (typeof channelId !== 'string' || !channelId.trim()) return null;
     return channelId.trim().replace(/^['"]+|['"]+$/g, '');
+}
+
+function getConfiguredChannelIds() {
+    return {
+        nbi: normalizeChannelId(process.env.NBI_RAID_CHANNEL_ID),
+        ndridd: normalizeChannelId(process.env.NDRIDD_SECURITY_CHANNEL_ID)
+    };
 }
 
 function parseRoleIds(value) {
@@ -105,6 +109,12 @@ module.exports = {
                         .setDescription('Raid ID to start')
                         .setRequired(true)
                 )
+                .addStringOption(option =>
+                    option.setName('server_info')
+                        .setDescription('Server link or text with join information')
+                        .setMaxLength(1024)
+                        .setRequired(true)
+                )
         )
         .addSubcommand(sub =>
             sub.setName('timechange')
@@ -146,11 +156,11 @@ module.exports = {
 
     async execute(interaction, client) {
         if (!interaction.guildId) {
-            return interaction.reply({ content: 'Raid commands can only be used inside a server.', ephemeral: true });
+            return interaction.reply({ content: 'Raid commands can only be used inside a server.', flags: MessageFlags.Ephemeral });
         }
 
         if (!canRunRaidCommand(interaction)) {
-            return interaction.reply({ content: 'You need an allowed raid hosting role to use raid commands.', ephemeral: true });
+            return interaction.reply({ content: 'You need an allowed raid hosting role to use raid commands.', flags: MessageFlags.Ephemeral });
         }
 
         const subcommand = interaction.options.getSubcommand();
@@ -168,7 +178,7 @@ module.exports = {
 
 async function scheduleRaid(interaction, client) {
     try {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         if (!process.env.DATABASE_URL) {
             return interaction.editReply({ content: 'This command requires an external Postgres database. Set DATABASE_URL in your .env and restart the bot.' });
@@ -181,10 +191,13 @@ async function scheduleRaid(interaction, client) {
         }
 
         const raidId = generateRaidId();
-        const host = interaction.user.tag;
+        const configuredChannels = getConfiguredChannelIds();
+        if (configuredChannels.nbi && configuredChannels.nbi === configuredChannels.ndridd) {
+            return interaction.editReply({ content: 'Raid channel configuration problem:\n- NBI_RAID_CHANNEL_ID and NDRIDD_SECURITY_CHANNEL_ID must be different channels.' });
+        }
 
-        const nbiTarget = await validateRaidChannel(client, 'NBI', NBI_CHANNEL_ID);
-        const ndriddTarget = await validateRaidChannel(client, 'NDRIDD', NDRIDD_CHANNEL_ID);
+        const nbiTarget = await validateRaidChannel(client, 'NBI', configuredChannels.nbi);
+        const ndriddTarget = await validateRaidChannel(client, 'NDRIDD', configuredChannels.ndridd);
         const channelErrors = [nbiTarget.error, ndriddTarget.error].filter(Boolean);
 
         if (channelErrors.length > 0) {
@@ -197,8 +210,8 @@ async function scheduleRaid(interaction, client) {
         const ndriddChannel = ndriddTarget.channel;
 
         const nbiEmbed = new EmbedBuilder()
-        
-            .setTitle(`NBI Raid Has been Scheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)`)
+            .setColor('#ff2600')
+            .setTitle('NBI Raid Has Been Scheduled')
             .setAuthor({
     name: client.user.username,
     iconURL: client.user.displayAvatarURL()
@@ -234,16 +247,17 @@ async function scheduleRaid(interaction, client) {
             .setTimestamp();
 
         const ndriddEmbed = new EmbedBuilder()
-            .setTitle(`NBI Raid Has been Scheduled for <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)`)
+            .setColor('#0400ff')
+            .setTitle('NBI Invasion Has Been Scheduled')
             .setAuthor({
     name: client.user.username,
     iconURL: client.user.displayAvatarURL()
 })
-            .setDescription(`Raid ID: ${raidId}
+            .setDescription(`Invasion ID: ${raidId}
                 
-                \nRaid Host: <@${interaction.user.id}>
+                \nRInvasion Host: <@${interaction.user.id}>
 
-                \nRaid Time: <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)
+                \nInvasion Time: <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)
 
                 React with ✅ If you want to Participate in it,
                 also please make sure you have enough time to participate in it.
@@ -256,9 +270,9 @@ async function scheduleRaid(interaction, client) {
             * Work as a Team Teamwork = win 
             * And listen to The Team Lead`)
             .addFields(
-                { name: 'Security', value: 'NDRIDD Reactions ✅: 0', inline: false },
-
-                { name: 'Raiders Tracker', value: 'NBI Reactions ✅: 0', inline: false },
+                { name: '', value: 'NDRIDD Reactions ✅: 0', inline: false },
+                
+                { name: '', value: 'NBI Reactions ✅: 0', inline: false },
                 
                 
             )
@@ -307,7 +321,7 @@ async function scheduleRaid(interaction, client) {
         console.error('scheduleRaid failed:', err);
         const response = { content: 'Raid scheduling failed. Please check the bot logs.' };
         if (interaction.deferred || interaction.replied) return interaction.editReply(response).catch(() => {});
-        return interaction.reply({ ...response, ephemeral: true }).catch(() => {});
+        return interaction.reply({ ...response, flags: MessageFlags.Ephemeral }).catch(() => {});
     }
 }
 
@@ -322,22 +336,25 @@ function dbGet(sql, params = []) {
 async function updateRaidStatus(interaction, newStatus, client) {
     const raidId = interaction.options.getString('raid_id');
     const reason = newStatus === 'cancelled' ? interaction.options.getString('reason') || 'No reason provided.' : null;
+    const serverInfo = newStatus === 'started' ? interaction.options.getString('server_info') : null;
     const raid = await dbGet('SELECT * FROM raids WHERE raid_id = ?', [raidId]);
     if (!raid) {
-        return interaction.reply({ content: `Raid ID ${raidId} not found.`, ephemeral: true });
+        return interaction.reply({ content: `Raid ID ${raidId} not found.`, flags: MessageFlags.Ephemeral });
     }
 
     try {
         await dbQuery('UPDATE raids SET status = ? WHERE raid_id = ?', [newStatus, raidId]);
     } catch (err) {
         console.error('DB update status error', err);
-        return interaction.reply({ content: 'Failed to update raid status.', ephemeral: true });
+        return interaction.reply({ content: 'Failed to update raid status.', flags: MessageFlags.Ephemeral });
     }
 
     const statusLabel = newStatus === 'started' ? 'Raid Started' : newStatus === 'cancelled' ? 'Raid Cancelled' : 'Raid Concluded';
+    const serverInfoLine = serverInfo ? `\nServer Information: ${serverInfo}` : '';
     const statusEmbed = new EmbedBuilder()
+        .setColor('#FFA500')
         .setTitle(statusLabel)
-        .setDescription(`Raid ID: ${raidId}\nScheduled for <t:${raid.scheduled_at}:F> (<t:${raid.scheduled_at}:R>)\nStatus: ${newStatus}`)
+        .setDescription(`Raid ID: ${raidId}\nScheduled for <t:${raid.scheduled_at}:F> (<t:${raid.scheduled_at}:R>)\nStatus: ${newStatus}${serverInfoLine}`)
         .addFields(
             { name: 'Embed ID', value: raidId, inline: false }
         )
@@ -348,12 +365,12 @@ async function updateRaidStatus(interaction, newStatus, client) {
     }
 
     try {
-        await sendRaidEmbedToChannels(raid, client, statusEmbed);
+        await sendRaidEmbedToChannels(client, statusEmbed);
     } catch (err) {
         console.error('Failed to send raid status embed', err);
     }
 
-    return interaction.reply({ content: `Raid ${raidId} status updated to ${newStatus}.`, ephemeral: true });
+    return interaction.reply({ content: `Raid ${raidId} status updated to ${newStatus}.`, flags: MessageFlags.Ephemeral });
 }
 
 async function changeRaidTime(interaction, client) {
@@ -361,63 +378,57 @@ async function changeRaidTime(interaction, client) {
     const tsString = interaction.options.getString('timestamp');
     const scheduledAt = parseInt(tsString, 10);
     if (Number.isNaN(scheduledAt) || scheduledAt < 0) {
-        return interaction.reply({ content: 'Invalid unix timestamp provided.', ephemeral: true });
+        return interaction.reply({ content: 'Invalid unix timestamp provided.', flags: MessageFlags.Ephemeral });
     }
 
     const raid = await dbGet('SELECT * FROM raids WHERE raid_id = ?', [raidId]);
     if (!raid) {
-        return interaction.reply({ content: `Raid ID ${raidId} not found.`, ephemeral: true });
+        return interaction.reply({ content: `Raid ID ${raidId} not found.`, flags: MessageFlags.Ephemeral });
     }
 
     try {
         await dbQuery('UPDATE raids SET scheduled_at = ? WHERE raid_id = ?', [scheduledAt, raidId]);
     } catch (err) {
         console.error('DB update time error', err);
-        return interaction.reply({ content: 'Failed to update raid time.', ephemeral: true });
+        return interaction.reply({ content: 'Failed to update raid time.', flags: MessageFlags.Ephemeral });
     }
 
     const timeChangeEmbed = new EmbedBuilder()
+        .setColor('#F1C40F')
         .setTitle('Raid Time Changed')
-        .setDescription(`Raid ID: ${raidId}\nNew time: <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)`)
+        .setDescription(`Raid Time changed
+            Raid ID: ${raidId}\nNew time: <t:${scheduledAt}:F> (<t:${scheduledAt}:R>)`)
         .setTimestamp();
 
     try {
-        await sendRaidEmbedToChannels(raid, client, timeChangeEmbed);
+        await sendRaidEmbedToChannels(client, timeChangeEmbed);
     } catch (err) {
         console.error('Failed to send raid time change embeds', err);
     }
 
-    return interaction.reply({ content: `Raid ${raidId} time updated to <t:${scheduledAt}:F>.`, ephemeral: true });
+    return interaction.reply({ content: `Raid ${raidId} time updated to <t:${scheduledAt}:F>.`, flags: MessageFlags.Ephemeral });
 }
 
-async function sendRaidEmbedToChannels(raid, client, embed) {
-    const sendMessage = async channelId => {
-        if (!channelId) return null;
-        try {
-            const channel = await client.channels.fetch(channelId);
-            if (!channel || !channel.isTextBased()) return null;
-            const ping = getRaidPingForChannel(raid, channelId);
-            return await channel.send({
-                content: ping.content,
-                embeds: [embed],
-                allowedMentions: { roles: [ping.roleId] }
-            });
-        } catch (err) {
-            console.error('Failed to send raid command embed to channel', err);
-            return null;
-        }
-    };
-
-    await sendMessage(raid.channel_id);
-    await sendMessage(raid.other_channel_id);
-}
-
-function getRaidPingForChannel(raid, channelId) {
-    if (channelId === raid.other_channel_id) {
-        return { content: NDRIDD_RAID_PING, roleId: NDRIDD_RAID_ROLE_ID };
+async function sendRaidEmbedToChannels(client, embed) {
+    const configuredChannels = getConfiguredChannelIds();
+    if (configuredChannels.nbi && configuredChannels.nbi === configuredChannels.ndridd) {
+        throw new Error('NBI and NDRIDD raid channels are configured with the same ID.');
     }
 
-    return { content: NBI_RAID_PING, roleId: NBI_RAID_ROLE_ID };
+    const targets = [
+        { label: 'NBI', channelId: configuredChannels.nbi, content: NBI_RAID_PING, roleId: NBI_RAID_ROLE_ID },
+        { label: 'NDRIDD', channelId: configuredChannels.ndridd, content: NDRIDD_RAID_PING, roleId: NDRIDD_RAID_ROLE_ID }
+    ];
+
+    for (const target of targets) {
+        const result = await validateRaidChannel(client, target.label, target.channelId);
+        if (result.error) throw new Error(result.error);
+        await result.channel.send({
+            content: target.content,
+            embeds: [embed],
+            allowedMentions: { roles: [target.roleId] }
+        });
+    }
 }
 
 async function handleRaidReaction(reaction, user, client) {

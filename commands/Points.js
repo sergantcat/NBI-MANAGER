@@ -112,7 +112,7 @@ module.exports = {
         if (!interaction.guildId) {
             return interaction.reply({
                 embeds: [errorEmbed('Server Only', 'Points can only be used inside a server.')],
-                ephemeral: true
+                flags: 64
             });
         }
 
@@ -126,7 +126,7 @@ module.exports = {
         if (!canManagePoints(interaction)) {
             return interaction.reply({
                 embeds: [errorEmbed('No Permission', 'You need an allowed points role to change points.')],
-                ephemeral: true
+                flags: 64
             });
         }
 
@@ -135,7 +135,7 @@ module.exports = {
         if (subcommand === 'set') return changePoints(interaction, client, 'set');
         if (subcommand === 'reset') return changePoints(interaction, client, 'reset');
 
-        return interaction.reply({ content: 'Unknown points subcommand.', ephemeral: true });
+        return interaction.reply({ content: 'Unknown points subcommand.', flags: 64 });
     },
 };
 
@@ -220,7 +220,7 @@ async function changePoints(interaction, client, mode) {
     if (!targetUser || targetUser.bot) {
         return interaction.reply({
             embeds: [errorEmbed('Invalid User', 'Points can only be changed for normal users.')],
-            ephemeral: true
+            flags: 64
         });
     }
 

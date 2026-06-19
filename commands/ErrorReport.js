@@ -61,7 +61,7 @@ module.exports = {
                 { name: 'Status', value: notified ? 'Owner notified' : 'Notification failed - contact NBI Staff or erycd14(@sergantcat) directly' }
             );
 
-        await interaction.reply({ embeds: [responseEmbed], ephemeral: true });
+            await interaction.reply({ embeds: [responseEmbed], flags: 64 });
     },
 };
 

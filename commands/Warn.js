@@ -23,18 +23,18 @@ module.exports = {
 
   async execute(interaction) {
     if (!interaction.guildId) {
-      return interaction.reply({ embeds: [errorEmbed('Server Only', 'This command can only be used inside a server.')], ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Server Only', 'This command can only be used inside a server.')], flags: 64 });
     }
 
     if (!hasAnyRole(interaction, WARN_COMMAND_ROLE_IDS)) {
-      return interaction.reply({ embeds: [errorEmbed('No Permission', 'You need an allowed warn role to use this command.')], ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('No Permission', 'You need an allowed warn role to use this command.')], flags: 64 });
     }
 
     const targetUser = interaction.options.getUser('user');
     const reason = interaction.options.getString('reason') || 'No reason provided';
 
     if (!targetUser || targetUser.bot) {
-      return interaction.reply({ embeds: [errorEmbed('Invalid User', 'You can only warn normal users.')], ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Invalid User', 'You can only warn normal users.')], flags: 64 });
     }
 
     await insertWarn({
@@ -57,7 +57,7 @@ module.exports = {
       .setColor('#ff9900')
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed], flags: 64 });
   },
 };
 

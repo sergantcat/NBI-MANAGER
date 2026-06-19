@@ -44,15 +44,15 @@ module.exports = {
 
   async execute(interaction) {
     if (!interaction.guildId) {
-      return interaction.reply({ embeds: [errorEmbed('Server Only', 'This command can only be used inside a server.')], ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Server Only', 'This command can only be used inside a server.')], flags: 64 });
     }
 
     if (!hasAnyRole(interaction, BLACKLIST_COMMAND_ROLE_IDS)) {
-      return interaction.reply({ embeds: [errorEmbed('No Permission', 'You need an allowed blacklist role to use this command.')], ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('No Permission', 'You need an allowed blacklist role to use this command.')], flags: 64 });
     }
 
     if (!BLACKLIST_ROLE_ID) {
-      return interaction.reply({ embeds: [errorEmbed('Missing Config', 'Set BLACKLIST_ROLE_ID in .env before using this command.')], ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Missing Config', 'Set BLACKLIST_ROLE_ID in .env before using this command.')], flags: 64 });
     }
 
     await interaction.deferReply({ flags: 64 });

@@ -1,8 +1,9 @@
+require('dotenv').config({ quiet: true });
+
 const fs = require('fs');
 const path = require('path');
 const { Client, Collection, GatewayIntentBits, Partials, REST, Routes } = require('discord.js');
 const { setupGlobalErrorReporting } = require('./lib/errorReporter');
-require('dotenv').config();
 
 const token = process.env.DISCORD_TOKEN || process.env.TOKEN;
 const clientId = process.env.CLIENT_ID;
@@ -53,7 +54,7 @@ for (const file of commandFiles) {
     continue;
   }
 
-  // store command by name for execution
+  
   client.commands.set(command.data.name ?? command.data.name?.toString(), command);
   try { commands.push(command.data.toJSON()); } catch (e) { console.warn('Failed to serialize command data for', file, e); }
 }
@@ -76,7 +77,7 @@ const rest = new REST({ version: '10' }).setToken(token);
     console.error('Failed to register commands:', error);
   }
 
-  client.once('ready', () => {
+  client.once('clientReady', () => {
     console.log(`Logged in successfully as ${client.user.tag}`);
   });
 
@@ -99,9 +100,9 @@ const rest = new REST({ version: '10' }).setToken(token);
       });
       try {
         if (interaction.replied || interaction.deferred) {
-          await interaction.followUp({ content: 'There was an error while executing this command.', ephemeral: true }).catch(err => console.error('FollowUp failed:', err));
+          await interaction.followUp({ content: 'There was an error while executing this command.', flags: 64 }).catch(err => console.error('FollowUp failed:', err));
         } else {
-          await interaction.reply({ content: 'There was an error while executing this command.', ephemeral: true }).catch(err => console.error('Reply failed:', err));
+          await interaction.reply({ content: 'There was an error while executing this command.', flags: 64 }).catch(err => console.error('Reply failed:', err));
         }
       } catch (notifyErr) {
         errorReporter.originalConsoleError('Failed to send error response to interaction:', notifyErr);

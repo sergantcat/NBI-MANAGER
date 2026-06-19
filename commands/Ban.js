@@ -23,18 +23,18 @@ module.exports = {
 
   async execute(interaction) {
     if (!interaction.guildId) {
-      return interaction.reply({ embeds: [errorEmbed('Server Only', 'This command can only be used inside a server.')], ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Server Only', 'This command can only be used inside a server.')], flags: 64 });
     }
 
     if (!hasAnyRole(interaction, BAN_COMMAND_ROLE_IDS)) {
-      return interaction.reply({ embeds: [errorEmbed('No Permission', 'You need an allowed ban role to use this command.')], ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('No Permission', 'You need an allowed ban role to use this command.')], flags: 64 });
     }
 
     const user = interaction.options.getUser('user');
     const reason = interaction.options.getString('reason') || 'No reason provided';
 
     if (!user || user.id === interaction.user.id) {
-      return interaction.reply({ embeds: [errorEmbed('Invalid User', 'You cannot ban that user.')], ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Invalid User', 'You cannot ban that user.')], flags: 64 });
     }
 
     let member = interaction.options.getMember('user');
@@ -45,7 +45,7 @@ module.exports = {
     }
 
     if (member && !member.bannable) {
-      return interaction.reply({ embeds: [errorEmbed('Cannot Ban', 'I cannot ban this user. Check my role position and permissions.')], ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Cannot Ban', 'I cannot ban this user. Check my role position and permissions.')], flags: 64 });
     }
 
     try {
@@ -73,7 +73,7 @@ module.exports = {
       return interaction.reply({ embeds: [embed] });
     } catch (error) {
       console.error('Ban command error:', error);
-      return interaction.reply({ embeds: [errorEmbed('Error', 'An error occurred while trying to ban the user.')], ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed('Error', 'An error occurred while trying to ban the user.')], flags: 64 });
     }
   },
 };
