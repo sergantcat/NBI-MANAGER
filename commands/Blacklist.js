@@ -19,6 +19,39 @@ function saveDatabase(data) {
   fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
 }
 
+function getRolesToRemove(member, blacklistRoleId) {
+  const botMember = member.guild.members.me;
+  const botHighestRole = botMember?.roles?.highest;
+
+  return member.roles.cache.filter(role => {
+    if (role.id === member.guild.id || role.id === blacklistRoleId) return false;
+    if (role.managed) return false;
+    if (!botHighestRole) return false;
+    return botHighestRole.comparePositionTo(role) > 0;
+  });
+}
+
+async function removeNonBlacklistRoles(member, blacklistRoleId, auditReason) {
+  const rolesToRemove = getRolesToRemove(member, blacklistRoleId);
+
+  if (!rolesToRemove.size) {
+    return { removedCount: 0, skippedCount: countNonBlacklistRoles(member, blacklistRoleId) };
+  }
+
+  await member.roles.remove([...rolesToRemove.keys()], auditReason);
+  return {
+    removedCount: rolesToRemove.size,
+    skippedCount: countNonBlacklistRoles(member, blacklistRoleId) - rolesToRemove.size,
+  };
+}
+
+function countNonBlacklistRoles(member, blacklistRoleId) {
+  return member.roles.cache.filter(role =>
+    role.id !== member.guild.id &&
+    role.id !== blacklistRoleId
+  ).size;
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('blacklist')
@@ -79,6 +112,21 @@ module.exports = {
         console.error(`Failed to add blacklist role to ${targetUser.tag}:`, roleError.message);
         return interaction.editReply({
           embeds: [errorEmbed('Role Failed', 'I could not add the blacklist role. Check my role position and permissions.')],
+          flags: 64
+        });
+      }
+
+      let removedRoles = { removedCount: 0, skippedCount: 0 };
+      try {
+        removedRoles = await removeNonBlacklistRoles(
+          targetMember,
+          BLACKLIST_ROLE_ID,
+          `Blacklisted by ${interaction.user.tag}: removing other roles`
+        );
+      } catch (roleError) {
+        console.error(`Failed to remove roles from ${targetUser.tag}:`, roleError.message);
+        return interaction.editReply({
+          embeds: [errorEmbed('Role Failed', 'I added the blacklist role, but could not remove the user\'s other roles. Check my role position and permissions.')],
           flags: 64
         });
       }
@@ -147,6 +195,8 @@ module.exports = {
         .addFields(
           { name: 'User', value: `${targetUser.tag} (${targetUser.id})`, inline: false },
           { name: 'Role Added', value: `<@&${BLACKLIST_ROLE_ID}>`, inline: false },
+          { name: 'Other Roles Removed', value: String(removedRoles.removedCount), inline: true },
+          { name: 'Roles Skipped', value: String(removedRoles.skippedCount), inline: true },
           { name: 'Reason', value: reason, inline: false },
           { name: 'Details', value: details, inline: false }
         )
