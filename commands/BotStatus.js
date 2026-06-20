@@ -10,7 +10,7 @@ module.exports = {
     await interaction.deferReply({ flags: 64 });
 
     const botStatusEmbed = new EmbedBuilder()
-      .setColor('#02050769')
+      .setColor('#020507')
       .setAuthor({
         name: interaction.client.user.username,
         iconURL: interaction.client.user.displayAvatarURL()

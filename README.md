@@ -53,7 +53,6 @@ CLIENT_ID=your_discord_application_id
 GUILD_ID=your_development_server_id
 
 DATABASE_URL=your_postgresql_connection_url
-DB_PATH=raids.db
 
 OWNER_ID=your_discord_user_id
 REPORT_USER_ID=your_discord_user_id
