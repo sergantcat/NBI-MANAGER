@@ -11,7 +11,7 @@ module.exports = {
         const serverLocation = interaction.guild?.preferredLocale ?? 'Unknown';
 
         const embed = new EmbedBuilder()
-            .setTitle('Pong 🏓 here is some data')
+            .setTitle('Pong - here is some data')
             .setColor('#010608')
             .setAuthor({
                 name: interaction.client.user.username,
@@ -21,7 +21,7 @@ module.exports = {
             .addFields(
                 { name: 'Bot Latency', value: `'${botLatency}ms'`, inline: true },
                 { name: 'API Latency', value: `'${apiLatency}ms'`, inline: true },
-                { name: 'Server Location', value: 'serverLocation', inline: true },
+                { name: 'Server Location', value: serverLocation, inline: true },
             );
 
         await interaction.reply({ embeds: [embed] });
