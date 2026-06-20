@@ -334,19 +334,21 @@ function dbGet(sql, params = []) {
 }
 
 async function updateRaidStatus(interaction, newStatus, client) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     const raidId = interaction.options.getString('raid_id');
     const reason = newStatus === 'cancelled' ? interaction.options.getString('reason') || 'No reason provided.' : null;
     const serverInfo = newStatus === 'started' ? interaction.options.getString('server_info') : null;
     const raid = await dbGet('SELECT * FROM raids WHERE raid_id = ?', [raidId]);
     if (!raid) {
-        return interaction.reply({ content: `Raid ID ${raidId} not found.`, flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ content: `Raid ID ${raidId} not found.` });
     }
 
     try {
         await dbQuery('UPDATE raids SET status = ? WHERE raid_id = ?', [newStatus, raidId]);
     } catch (err) {
         console.error('DB update status error', err);
-        return interaction.reply({ content: 'Failed to update raid status.', flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ content: 'Failed to update raid status.' });
     }
 
     const statusLabel = newStatus === 'started' ? 'Raid Started' : newStatus === 'cancelled' ? 'Raid Cancelled' : 'Raid Concluded';
@@ -377,27 +379,29 @@ async function updateRaidStatus(interaction, newStatus, client) {
         console.error('Failed to send raid status embed', err);
     }
 
-    return interaction.reply({ content: `Raid ${raidId} status updated to ${newStatus}.`, flags: MessageFlags.Ephemeral });
+    return interaction.editReply({ content: `Raid ${raidId} status updated to ${newStatus}.` });
 }
 
 async function changeRaidTime(interaction, client) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     const raidId = interaction.options.getString('raid_id');
     const tsString = interaction.options.getString('timestamp');
     const scheduledAt = parseInt(tsString, 10);
     if (Number.isNaN(scheduledAt) || scheduledAt < 0) {
-        return interaction.reply({ content: 'Invalid unix timestamp provided.', flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ content: 'Invalid unix timestamp provided.' });
     }
 
     const raid = await dbGet('SELECT * FROM raids WHERE raid_id = ?', [raidId]);
     if (!raid) {
-        return interaction.reply({ content: `Raid ID ${raidId} not found.`, flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ content: `Raid ID ${raidId} not found.` });
     }
 
     try {
         await dbQuery('UPDATE raids SET scheduled_at = ? WHERE raid_id = ?', [scheduledAt, raidId]);
     } catch (err) {
         console.error('DB update time error', err);
-        return interaction.reply({ content: 'Failed to update raid time.', flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ content: 'Failed to update raid time.' });
     }
 
     const timeChangeEmbed = new EmbedBuilder()
@@ -413,7 +417,7 @@ async function changeRaidTime(interaction, client) {
         console.error('Failed to send raid time change embeds', err);
     }
 
-    return interaction.reply({ content: `Raid ${raidId} time updated to <t:${scheduledAt}:F>.`, flags: MessageFlags.Ephemeral });
+    return interaction.editReply({ content: `Raid ${raidId} time updated to <t:${scheduledAt}:F>.` });
 }
 
 async function sendRaidEmbedToChannels(client, embed) {

@@ -116,26 +116,39 @@ module.exports = {
             });
         }
 
-        await ensurePointsTables();
-
         const subcommand = interaction.options.getSubcommand();
+
+        if (!['view', 'leaderboard', 'add', 'remove', 'set', 'reset'].includes(subcommand)) {
+            return interaction.reply({ content: 'Unknown points subcommand.', flags: 64 });
+        }
+
+        if (!['view', 'leaderboard'].includes(subcommand)) {
+            if (!canManagePoints(interaction)) {
+                return interaction.reply({
+                    embeds: [errorEmbed('No Permission', 'You need an allowed points role to change points.')],
+                    flags: 64
+                });
+            }
+
+            const targetUser = interaction.options.getUser('user');
+            if (!targetUser || targetUser.bot) {
+                return interaction.reply({
+                    embeds: [errorEmbed('Invalid User', 'Points can only be changed for normal users.')],
+                    flags: 64
+                });
+            }
+        }
+
+        await interaction.deferReply();
+        await ensurePointsTables();
 
         if (subcommand === 'view') return viewPoints(interaction, client);
         if (subcommand === 'leaderboard') return showLeaderboard(interaction, client);
-
-        if (!canManagePoints(interaction)) {
-            return interaction.reply({
-                embeds: [errorEmbed('No Permission', 'You need an allowed points role to change points.')],
-                flags: 64
-            });
-        }
 
         if (subcommand === 'add') return changePoints(interaction, client, 'add');
         if (subcommand === 'remove') return changePoints(interaction, client, 'remove');
         if (subcommand === 'set') return changePoints(interaction, client, 'set');
         if (subcommand === 'reset') return changePoints(interaction, client, 'reset');
-
-        return interaction.reply({ content: 'Unknown points subcommand.', flags: 64 });
     },
 };
 
@@ -184,12 +197,12 @@ async function viewPoints(interaction, client) {
         .setAuthor(getBotAuthor(client))
         .setThumbnail(targetUser.displayAvatarURL())
         .addFields(
-            { name: 'User', value: `${targetUser.tag}\n<@${targetUser.id}>`, inline: true },
+            { name: '', value: `${targetUser.tag}\n<@${targetUser.id}>`, inline: true },
             { name: 'Points', value: `${total}`, inline: true }
         )
         .setTimestamp();
 
-    return interaction.reply({ embeds: [embed] });
+    return interaction.editReply({ embeds: [embed] });
 }
 
 async function showLeaderboard(interaction, client) {
@@ -209,7 +222,7 @@ async function showLeaderboard(interaction, client) {
         .setAuthor(getBotAuthor(client))
         .setTimestamp();
 
-    return interaction.reply({ embeds: [embed] });
+    return interaction.editReply({ embeds: [embed] });
 }
 
 async function changePoints(interaction, client, mode) {
@@ -218,9 +231,8 @@ async function changePoints(interaction, client, mode) {
     const reason = cleanReason(interaction.options.getString('reason'));
 
     if (!targetUser || targetUser.bot) {
-        return interaction.reply({
-            embeds: [errorEmbed('Invalid User', 'Points can only be changed for normal users.')],
-            flags: 64
+        return interaction.editReply({
+            embeds: [errorEmbed('Invalid User', 'Points can only be changed for normal users.')]
         });
     }
 
@@ -265,7 +277,7 @@ async function changePoints(interaction, client, mode) {
         .setFooter({ text: `Changed by ${interaction.user.tag}` })
         .setTimestamp();
 
-    return interaction.reply({ embeds: [embed] });
+    return interaction.editReply({ embeds: [embed] });
 }
 
 function calculateNewPoints(oldPoints, amount, mode) {
