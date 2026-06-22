@@ -1,6 +1,7 @@
 # NBI Manager
 
-NBI Manager is a Discord bot for coordinating raids and handling common server-management tasks. It includes cross-server raid announcements, reaction tracking, moderation tools, a points system, blacklist management, and automatic error reporting.
+NBI Manager is a Discord bot for coordinating raids and handling common server-management tasks. It includes cross-server raid announcements, reaction tracking, moderation tools, a points system, blacklist management, and automatic error reporting
+Bot is mainly coded in ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black).
 
 ## Features
 
